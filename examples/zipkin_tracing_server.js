@@ -30,7 +30,7 @@ var scribeClient = new Scribe('localhost',1463,{autoReconnect:true});
 scribeClient.open(function(err){
   console.log(err);
 });
-var zipkinTracer = new nodeTracers.ZipkinTracer(scribeClient,'test',{maxTraces:5});
+var zipkinTracer = new nodeTracers.ZipkinTracer(scribeClient,'test',{maxTraces:20,sendInterval:50});
 tracers.pushTracer(zipkinTracer);
 // DebugTracer prints traces to stdout
 tracers.pushTracer(new tracers.DebugTracer(process.stdout));
