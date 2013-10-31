@@ -35,6 +35,16 @@ var testcases = {
     trace: new trace.Trace('test', {parentSpanId:5, spanId: 10, traceId:1}),
     annotations: []
   },
+  trace_with_no_parentSpanId_and_annotations: {
+    trace: new trace.Trace('test', {parentSpanId:null, spanId:10, traceId:1}),
+    annotations: [new trace.Annotation.timestamp('name1', 1),
+      new trace.Annotation.string('name2', '2')]
+  },
+  trace_with_no_parentSpanId_and_bad_annotations: {
+    trace: new trace.Trace('test', {parentSpanId:null, spanId:10, traceId:1}),
+    annotations: [new trace.Annotation.timestamp('name1', 1),
+      new trace.Annotation.string('name2', null)]
+  },
   trace_with_annotation_with_endpoint: {
     trace: new trace.Trace('test', {spanId: 10, traceId:1}),
     annotations: [
@@ -178,6 +188,43 @@ module.exports = {
             })],
             binary_annotations: []
           }));
+    }
+    , trace_with_no_parentSpanId_and_annotations: function(test){
+      testZipkinFormatter(
+        test, testcases.trace_with_no_parentSpanId_and_annotations,
+          new zipkinCore_types.Span({
+            trace_id: 1,
+            id: 10,
+            parent_id: null,
+            name: 'test',
+            annotations: [ new zipkinCore_types.Annotation({
+              timestamp: 1,
+              value: 'name1'
+            })],
+            binary_annotations: [ new zipkinCore_types.BinaryAnnotation({
+              value: '2',
+              key: 'name2',
+              annotation_type: zipkinCore_types.AnnotationType.STRING
+            })]
+          }));
+    }, trace_with_no_parentSpanId_and_bad_annotations: function(test){
+      testZipkinFormatter(
+        test, testcases.trace_with_no_parentSpanId_and_bad_annotations,
+        new zipkinCore_types.Span({
+          trace_id: 1,
+          id: 10,
+          parent_id: null,
+          name: 'test',
+          annotations: [ new zipkinCore_types.Annotation({
+            timestamp: 1,
+            value: 'name1'
+          })],
+          binary_annotations: [ new zipkinCore_types.BinaryAnnotation({
+            value: null,
+            key: 'name2',
+            annotation_type: zipkinCore_types.AnnotationType.STRING
+          })]
+        }));
     }
   }
 };
