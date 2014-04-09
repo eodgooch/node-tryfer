@@ -27,26 +27,26 @@ var zipkinCore_types = require('../lib/_thrift/zipkinCore/zipkinCore_types');
 // trace, and one with an endpoint in one of the annotations
 var testcases = {
   basic_trace_and_annotations: {
-    trace: new trace.Trace('test', {spanId: 10, traceId:1}),
+    trace: new trace.Trace('test', {spanId: 10, traceId:1, debug:true}),
     annotations: [new trace.Annotation.timestamp('name1', 1),
                   new trace.Annotation.string('name2', '2')]
   },
   trace_with_parentSpanId: {
-    trace: new trace.Trace('test', {parentSpanId:5, spanId: 10, traceId:1}),
+    trace: new trace.Trace('test', {parentSpanId:5, spanId: 10, traceId:1, debug:false}),
     annotations: []
   },
   trace_with_no_parentSpanId_and_annotations: {
-    trace: new trace.Trace('test', {parentSpanId:null, spanId:10, traceId:1}),
+    trace: new trace.Trace('test', {parentSpanId:null, spanId:10, traceId:1, debug:false}),
     annotations: [new trace.Annotation.timestamp('name1', 1),
       new trace.Annotation.string('name2', '2')]
   },
   trace_with_no_parentSpanId_and_bad_annotations: {
-    trace: new trace.Trace('test', {parentSpanId:null, spanId:10, traceId:1}),
+    trace: new trace.Trace('test', {parentSpanId:null, spanId:10, traceId:1, debug:false}),
     annotations: [new trace.Annotation.timestamp('name1', 1),
       new trace.Annotation.string('name2', null)]
   },
   trace_with_annotation_with_endpoint: {
-    trace: new trace.Trace('test', {spanId: 10, traceId:1}),
+    trace: new trace.Trace('test', {spanId: 10, traceId:1, debug:false}),
     annotations: [
       new trace.Annotation(
         'name1', 1, 'timestamp', (new trace.Endpoint('1.1.1.1', 5, 'service'))
@@ -77,6 +77,14 @@ var testZipkinFormatter = function (test, testcase, expected) {
         var prot = new tprotocol.TBinaryProtocol(trans);
         var span = new zipkinCore_types.Span();
         span.read(prot);
+        span.trace_id = span.trace_id.toNumber();
+        span.id = span.id.toNumber();
+        var parent_span_id = span.parent_id ? span.parent_id.toNumber() : null;
+        if (parent_span_id) span.parent_id = parent_span_id;
+        span.annotations.forEach(function(a){
+          var val = a.timestamp ? a.timestamp.toNumber() : null;
+          if (val) a.timestamp = val;
+        });
         test.deepEqual(span, expected);
         test.done();
       });
@@ -119,22 +127,22 @@ module.exports = {
     test_trace_with_annotation_with_endpoint: function(test) {
       testRestkinFormatter(
         test, testcases.trace_with_annotation_with_endpoint, [{
-            trace_id: '0000000000000001',
-            span_id: '000000000000000a',
-            name: 'test',
-            annotations: [
-              {
-                key: 'name1',
-                value: 1,
-                type: 'timestamp',
-                host: {
-                  ipv4: '1.1.1.1',
-                  port: 5,
-                  service_name: 'service'
-                }
+          trace_id: '0000000000000001',
+          span_id: '000000000000000a',
+          name: 'test',
+          annotations: [
+            {
+              key: 'name1',
+              value: 1,
+              type: 'timestamp',
+              host: {
+                ipv4: '1.1.1.1',
+                port: 5,
+                service_name: 'service'
               }
-            ]
-          }]);
+            }
+          ]
+        }]);
     }
   },
   zipkinFormatterTests: {
@@ -153,7 +161,8 @@ module.exports = {
             value: '2',
             key: 'name2',
             annotation_type: zipkinCore_types.AnnotationType.STRING
-          })]
+          })],
+          debug: true
         }));
     },
     test_trace_with_parentSpanId: function(test){
@@ -165,48 +174,51 @@ module.exports = {
           id: 10,
           name: 'test',
           annotations: [],
-          binary_annotations: []
+          binary_annotations: [],
+          debug: false
         }));
     },
     test_trace_with_annotation_with_endpoint: function(test) {
       testZipkinFormatter(
         test, testcases.trace_with_annotation_with_endpoint,
         new zipkinCore_types.Span({
-            trace_id: 1,
-            id: 10,
-            name: 'test',
-            annotations: [ new zipkinCore_types.Annotation({
-              timestamp: 1,
-              value: 'name1',
-              host: new zipkinCore_types.Endpoint({
-                // formula is (first octet * 256^3) + (second octet * 256^2) +
-                // (third octet * 256) + (fourth octet)
-                ipv4: Math.pow(256, 3) + Math.pow(256, 2) + 256 + 1,
-                port: 5,
-                service_name: 'service'
-              })
-            })],
-            binary_annotations: []
-          }));
-    }
-    , trace_with_no_parentSpanId_and_annotations: function(test){
+          trace_id: 1,
+          id: 10,
+          name: 'test',
+          annotations: [ new zipkinCore_types.Annotation({
+            timestamp: 1,
+            value: 'name1',
+            host: new zipkinCore_types.Endpoint({
+              // formula is (first octet * 256^3) + (second octet * 256^2) +
+              // (third octet * 256) + (fourth octet)
+              ipv4: Math.pow(256, 3) + Math.pow(256, 2) + 256 + 1,
+              port: 5,
+              service_name: 'service'
+            })
+          })],
+          binary_annotations: [],
+          debug: false
+        }));
+    },
+    trace_with_no_parentSpanId_and_annotations: function(test){
       testZipkinFormatter(
         test, testcases.trace_with_no_parentSpanId_and_annotations,
-          new zipkinCore_types.Span({
-            trace_id: 1,
-            id: 10,
-            parent_id: null,
-            name: 'test',
-            annotations: [ new zipkinCore_types.Annotation({
-              timestamp: 1,
-              value: 'name1'
-            })],
-            binary_annotations: [ new zipkinCore_types.BinaryAnnotation({
-              value: '2',
-              key: 'name2',
-              annotation_type: zipkinCore_types.AnnotationType.STRING
-            })]
-          }));
+        new zipkinCore_types.Span({
+          trace_id: 1,
+          id: 10,
+          parent_id: null,
+          name: 'test',
+          annotations: [ new zipkinCore_types.Annotation({
+            timestamp: 1,
+            value: 'name1'
+          })],
+          binary_annotations: [ new zipkinCore_types.BinaryAnnotation({
+            value: '2',
+            key: 'name2',
+            annotation_type: zipkinCore_types.AnnotationType.STRING
+          })],
+          debug: false
+        }));
     }, trace_with_no_parentSpanId_and_bad_annotations: function(test){
       testZipkinFormatter(
         test, testcases.trace_with_no_parentSpanId_and_bad_annotations,
@@ -223,7 +235,8 @@ module.exports = {
             value: null,
             key: 'name2',
             annotation_type: zipkinCore_types.AnnotationType.STRING
-          })]
+          })],
+          debug: false
         }));
     }
   }
